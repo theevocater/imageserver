@@ -2,7 +2,6 @@ package main
 
 import (
   "net/http"
-  "io/ioutil"
   "unsafe"
   "regexp"
   "log"
@@ -17,7 +16,7 @@ import (
 )
 
 /*
-#cgo CFLAGS: -g -ggdb -fPIC -Wall -Wextra -pedantic -std=c99 -I/usr/local/include/GraphicsMagick
+#cgo CFLAGS: -I/usr/local/include/GraphicsMagick
 #cgo LDFLAGS: -L/usr/local/lib -l GraphicsMagick
 
 #include "resize.h"
@@ -67,21 +66,23 @@ func ParseURL(url string) (string, Dimensions, string) {
 func handler(w http.ResponseWriter, r *http.Request) {
   defer Write400(w)
 
-  _, dimensions, name := ParseURL(r.URL.Path)
-  file, err := ioutil.ReadFile(name)
-  if err != nil {
-    panic(err)
-  }
+  bucket, dimensions, name := ParseURL(r.URL.Path)
+  file_struct := disk_image{name, bucket}
+  file := file_struct.read()
 
   var length C.size_t = (C.size_t)(len(file))
   blob := C.resize_image(unsafe.Pointer(&file[0]), (*C.size_t)(unsafe.Pointer(&length)), (C.int)(dimensions.width), (C.int)(dimensions.height), 0, 13, 1.0)
   defer C.free(blob)
+  // copy to go
+  resized_bytes := C.GoBytes(blob, (C.int)(length))
+  // is this safe?? I don't want to make too many copies
+  go file_struct.write(resized_bytes)
 
   w.Header().Add("Content-Type", "image/png")
   w.Header().Add("Content-Length", strconv.Itoa((int)(length)))
   w.Header().Add("Last-Modified", time.Now().Format(time.RFC1123))
   w.WriteHeader(http.StatusOK)
-  w.Write(C.GoBytes(blob, (C.int)(length)))
+  w.Write(resized_bytes)
   w.Write(file)
 }
 
