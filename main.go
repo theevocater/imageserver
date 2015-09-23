@@ -35,8 +35,9 @@ func Write400(w http.ResponseWriter) {
 }
 
 type Request struct {
+	Dimensions
+
 	collection, name string
-	dim              Dimensions
 	force            bool
 }
 
@@ -44,15 +45,16 @@ func ParseRequest(vars map[string]string, query map[string][]string) Request {
 	r := Request{}
 	var err error
 	r.collection = vars["collection"]
-	r.dim.width, err = strconv.Atoi(vars["width"])
+	r.width, err = strconv.Atoi(vars["width"])
 	if err == nil {
-		r.dim.height, err = strconv.Atoi(vars["height"])
+		r.height, err = strconv.Atoi(vars["height"])
 		if err != nil {
 			log.Print("Couldn't parse height")
 		}
 	} else {
 		log.Print("Couldn't parse wid")
 	}
+
 	r.name = vars["name"]
 	if arr := query["force"]; len(arr) > 0 {
 		r.force, err = strconv.ParseBool(arr[0])
@@ -65,11 +67,11 @@ func ParseRequest(vars map[string]string, query map[string][]string) Request {
 }
 
 func resizeHandler(w http.ResponseWriter, r *http.Request) {
+	// if we panic, write a 400 and return. this sucks, but uh, its fine for now.
 	defer Write400(w)
 
 	request := ParseRequest(mux.Vars(r), r.URL.Query())
-	file_struct := NewDiskImage(Conf.file_prefix, request.collection, fmt.Sprintf("%dx%d", request.dim.width, request.dim.height), request.name)
-	dimensions := request.dim
+	file_struct := NewDiskImage(Conf.file_prefix, request.collection, fmt.Sprintf("%dx%d", request.width, request.height), request.name)
 	fetched_file, resize := file_struct.read()
 
 	var resized_bytes []byte
@@ -78,7 +80,7 @@ func resizeHandler(w http.ResponseWriter, r *http.Request) {
 	if resize || request.force {
 		log.Print("resizing")
 		length = len(fetched_file)
-		blob := C.resize_image(unsafe.Pointer(&fetched_file[0]), (*C.size_t)(unsafe.Pointer(&length)), (C.int)(dimensions.width), (C.int)(dimensions.height), 0, 13, 1.0)
+		blob := C.resize_image(unsafe.Pointer(&fetched_file[0]), (*C.size_t)(unsafe.Pointer(&length)), (C.int)(request.width), (C.int)(request.height), 0, 13, 1.0)
 		defer C.free(blob)
 
 		// copy to go; I can make this faster with some "internal" things, but that can come later
