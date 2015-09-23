@@ -86,6 +86,8 @@ void * resize_image(void * blob, size_t *length, int width, int height,
   }
 
   // resize the image
+  // for what its worth, this will totally mess up gifs. gifs need to be
+  // coalasced first so we can correctly interpolate each frame.
   Image * temp_image = ResizeImage(image, resizeWidth, resizeHeight, (FilterTypes) filter, blur,  &exception);
 
   // if the resize failed, return NULL
