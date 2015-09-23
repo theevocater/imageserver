@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -35,47 +34,42 @@ func Write400(w http.ResponseWriter) {
 	}
 }
 
-func ParseDimensions(str string) Dimensions {
-	split := strings.Split(str, "x")
-	if len(split) == 2 {
-		width, err := strconv.Atoi(split[0])
-		if err != nil {
-			panic("Couldn't parse dimensions")
-		}
-		height, err := strconv.Atoi(split[1])
-		return Dimensions{width, height}
-	}
-	panic("Couldn't parse dimensions")
-}
-
 type Request struct {
-	collection, dimensions, name string
-	force                        bool
+	collection, name string
+	dim              Dimensions
+	force            bool
 }
 
 func ParseRequest(vars map[string]string, query map[string][]string) Request {
-	collection := vars["collection"]
-	dimensions := vars["dimensions"]
-	name := vars["name"]
-	// TODO(jake) this is weird, maybe there is a better way
-	var force bool
-	if arr := query["force"]; len(arr) > 0 {
-		f, err := strconv.ParseBool(arr[0])
-		force = f
+	r := Request{}
+	var err error
+	r.collection = vars["collection"]
+	r.dim.width, err = strconv.Atoi(vars["width"])
+	if err == nil {
+		r.dim.height, err = strconv.Atoi(vars["height"])
 		if err != nil {
-			force = false
+			log.Print("Couldn't parse height")
+		}
+	} else {
+		log.Print("Couldn't parse wid")
+	}
+	r.name = vars["name"]
+	if arr := query["force"]; len(arr) > 0 {
+		r.force, err = strconv.ParseBool(arr[0])
+		if err != nil {
+			r.force = false
 		}
 	}
 
-	return Request{collection, dimensions, name, force}
+	return r
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func resizeHandler(w http.ResponseWriter, r *http.Request) {
 	defer Write400(w)
 
 	request := ParseRequest(mux.Vars(r), r.URL.Query())
-	file_struct := NewDiskImage(Conf.file_prefix, request.collection, request.dimensions, request.name)
-	dimensions := ParseDimensions(request.dimensions)
+	file_struct := NewDiskImage(Conf.file_prefix, request.collection, fmt.Sprintf("%dx%d", request.dim.width, request.dim.height), request.name)
+	dimensions := request.dim
 	fetched_file, resize := file_struct.read()
 
 	var resized_bytes []byte
@@ -104,6 +98,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	w.Write(resized_bytes)
 }
 
+func capHandler(w http.ResponseWriter, r *http.Request) {
+	log.Print("capHandler")
+}
+
 var Conf Confs = Confs{"images/", 8000}
 
 type Confs struct {
@@ -130,7 +128,11 @@ func main() {
 	r := mux.NewRouter()
 
 	// /img/collection/dimensions/name?flags
-	r.HandleFunc("/img/{collection}/{dimensions}/{name}", handler)
+	r.HandleFunc("/img/{collection}/cap{dimensions}/{name}", capHandler)
+	// todo these
+	//r.HandleFunc("/img/{collection}/width{dimensions}/{name}", widthHandler)
+	//r.HandleFunc("/img/{collection}/height{dimensions}/{name}", heightHandler)
+	r.HandleFunc("/img/{collection}/{width}x{height}/{name}", resizeHandler)
 	log.Print("Starting imageservice")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", Conf.port), r))
 }
