@@ -89,6 +89,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		length = len(fetched_file)
 	}
 
+	// TODO(jake) return the actual type
 	w.Header().Add("Content-Type", "image/png")
 	w.Header().Add("Content-Length", strconv.Itoa(length))
 	w.Header().Add("Last-Modified", time.Now().Format(time.RFC1123))
@@ -105,18 +106,20 @@ type Confs struct {
 
 func main() {
 	C.CreateMagick()
-	defer C.DestroyMagick()
-	// something is going on here with graphics magick causing it to crash w/
-	// term :(
+
+	/* here we ensure that go's signal handlers don't interfere. We have to shut
+	down graphicsmagick correctly or crash */
 	signal_chan := make(chan os.Signal, 1)
-	signal.Notify(signal_chan, os.Interrupt)
-	signal.Notify(signal_chan, syscall.SIGTERM)
-	signal.Notify(signal_chan, syscall.SIGINT)
+	// Blow away go's handlers
+	signal.Reset(syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(signal_chan, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		<-signal_chan
+		// clean up graphicsmagick's memory / event loops
 		C.DestroyMagick()
 		os.Exit(1)
 	}()
+
 	http.HandleFunc("/img/", handler)
 	log.Print("Starting imageservice")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", Conf.port), nil))
