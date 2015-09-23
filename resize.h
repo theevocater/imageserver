@@ -12,9 +12,9 @@ void * resize_image(void * blob, size_t *length, int width, int height,
     int quality, int filter, double blur);
 
 // calls InitializeMagick
-void init();
+void CreateMagick();
 
 // calls DestroyMagick
-void destroy();
+void DestroyMagick();
 
 #endif /* end of include guard: RESIZE_H */

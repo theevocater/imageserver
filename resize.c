@@ -7,11 +7,11 @@
 #define HEIGHT  2
 int DefaultImageQuality = 75;
 
-void init() {
+void CreateMagick() {
   InitializeMagick(NULL);
 }
 
-void destroy() {
+void DestroyMagick() {
   DestroyMagick();
 }
 
