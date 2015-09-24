@@ -41,7 +41,7 @@ type Request struct {
 	force            bool
 }
 
-func ParseRequest(vars map[string]string, query map[string][]string) Request {
+func ParseResizeRequest(vars map[string]string, query map[string][]string) Request {
 	r := Request{}
 	var err error
 	r.collection = vars["collection"]
@@ -70,7 +70,7 @@ func resizeHandler(w http.ResponseWriter, r *http.Request) {
 	// if we panic, write a 400 and return. this sucks, but uh, its fine for now.
 	defer Write400(w)
 
-	request := ParseRequest(mux.Vars(r), r.URL.Query())
+	request := ParseResizeRequest(mux.Vars(r), r.URL.Query())
 	file_struct := NewDiskImage(Conf.file_prefix, request.collection, fmt.Sprintf("%dx%d", request.width, request.height), request.name)
 	fetched_file, resize := file_struct.read()
 
@@ -100,15 +100,83 @@ func resizeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(resized_bytes)
 }
 
-func capHandler(w http.ResponseWriter, r *http.Request) {
-	log.Print("capHandler")
+type CapRequest struct {
+	dimension int
+
+	dimension_enum   C.dimension_enum
+	collection, name string
+	force            bool
 }
 
-var Conf Confs = Confs{"images/", 8000}
+func ParseCapRequest(dimension C.dimension_enum, vars map[string]string, query map[string][]string) CapRequest {
+	r := CapRequest{}
+	var err error
+
+	r.collection = vars["collection"]
+	r.dimension_enum = dimension
+	r.dimension, err = strconv.Atoi(vars["dimension"])
+	if err != nil {
+		panic("Couldn't parse dimension")
+	}
+
+	r.name = vars["name"]
+	if arr := query["force"]; len(arr) > 0 {
+		r.force, err = strconv.ParseBool(arr[0])
+		if err != nil {
+			r.force = false
+		}
+	}
+
+	return r
+}
+
+func capHandler(w http.ResponseWriter, r *http.Request) {
+	defer Write400(w)
+
+	request := ParseCapRequest(C.CAP, mux.Vars(r), r.URL.Query())
+	file_struct := NewDiskImage(Conf.file_prefix, request.collection, fmt.Sprintf("cap%d", request.dimension), request.name)
+	fetched_file, resize := file_struct.read()
+
+	var resized_bytes []byte
+	var length int
+	var err C.cap_image_error
+
+	if resize || request.force {
+		log.Print("resizing")
+		length = len(fetched_file)
+		blob := C.cap_image(
+			unsafe.Pointer(&fetched_file[0]),
+			(*C.size_t)(unsafe.Pointer(&length)),
+			(*C.cap_image_error)(unsafe.Pointer(&err)),
+			(C.int)(request.dimension),
+			request.dimension_enum,
+			0, 13, 1.0, 100000, 100000)
+		defer C.free(blob)
+		// TODO need to do some checking on err
+
+		// copy to go; I can make this faster with some "internal" things, but that can come later
+		resized_bytes = C.GoBytes(blob, (C.int)(length))
+
+		go file_struct.write(resized_bytes)
+	} else {
+		resized_bytes = fetched_file
+		length = len(fetched_file)
+	}
+
+	// TODO(jake) return the actual type
+	w.Header().Add("Content-Type", "image/png")
+	w.Header().Add("Content-Length", strconv.Itoa(length))
+	w.Header().Add("Last-Modified", time.Now().Format(time.RFC1123))
+	w.WriteHeader(http.StatusOK)
+	w.Write(resized_bytes)
+}
+
+var Conf Confs = Confs{"images/", 8000, 10000, 10000}
 
 type Confs struct {
-	file_prefix string
-	port        int
+	file_prefix         string
+	port                int
+	maxWidth, maxHeight int
 }
 
 func main() {
@@ -130,7 +198,7 @@ func main() {
 	r := mux.NewRouter()
 
 	// /img/collection/dimensions/name?flags
-	r.HandleFunc("/img/{collection}/cap{dimensions}/{name}", capHandler)
+	r.HandleFunc("/img/{collection}/cap{dimension}/{name}", capHandler)
 	// todo these
 	//r.HandleFunc("/img/{collection}/width{dimensions}/{name}", widthHandler)
 	//r.HandleFunc("/img/{collection}/height{dimensions}/{name}", heightHandler)
