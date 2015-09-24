@@ -130,10 +130,7 @@ func ParseCapRequest(dimension C.dimension_enum, vars map[string]string, query m
 	return r
 }
 
-func capHandler(w http.ResponseWriter, r *http.Request) {
-	defer Write400(w)
-
-	request := ParseCapRequest(C.CAP, mux.Vars(r), r.URL.Query())
+func capImage(w http.ResponseWriter, request CapRequest) {
 	file_struct := NewDiskImage(Conf.file_prefix, request.collection, fmt.Sprintf("cap%d", request.dimension), request.name)
 	fetched_file, resize := file_struct.read()
 
@@ -171,6 +168,27 @@ func capHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(resized_bytes)
 }
 
+func capHandler(w http.ResponseWriter, r *http.Request) {
+	defer Write400(w)
+
+	request := ParseCapRequest(C.CAP, mux.Vars(r), r.URL.Query())
+	capImage(w, request)
+}
+
+func widthHandler(w http.ResponseWriter, r *http.Request) {
+	defer Write400(w)
+
+	request := ParseCapRequest(C.WIDTH, mux.Vars(r), r.URL.Query())
+	capImage(w, request)
+}
+
+func heightHandler(w http.ResponseWriter, r *http.Request) {
+	defer Write400(w)
+
+	request := ParseCapRequest(C.HEIGHT, mux.Vars(r), r.URL.Query())
+	capImage(w, request)
+}
+
 var Conf Confs = Confs{"images/", 8000, 10000, 10000}
 
 type Confs struct {
@@ -199,9 +217,14 @@ func main() {
 
 	// /img/collection/dimensions/name?flags
 	r.HandleFunc("/img/{collection}/cap{dimension}/{name}", capHandler)
-	// todo these
-	//r.HandleFunc("/img/{collection}/width{dimensions}/{name}", widthHandler)
-	//r.HandleFunc("/img/{collection}/height{dimensions}/{name}", heightHandler)
+	r.HandleFunc("/img/{collection}/cap/{dimension}/{name}", capHandler)
+
+	r.HandleFunc("/img/{collection}/width{dimension}/{name}", widthHandler)
+	r.HandleFunc("/img/{collection}/width/{dimension}/{name}", widthHandler)
+
+	r.HandleFunc("/img/{collection}/height{dimension}/{name}", heightHandler)
+	r.HandleFunc("/img/{collection}/height/{dimension}/{name}", heightHandler)
+
 	r.HandleFunc("/img/{collection}/{width}x{height}/{name}", resizeHandler)
 	log.Print("Starting imageservice")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", Conf.port), r))
