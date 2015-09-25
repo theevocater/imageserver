@@ -197,7 +197,7 @@ type Confs struct {
 }
 
 func main() {
-	C.CreateMagick()
+	C.InitializeMagick(nil)
 
 	/* here we ensure that go's signal handlers don't interfere. We have to shut
 	down graphicsmagick correctly or crash */

@@ -1,6 +1,7 @@
 #ifndef RESIZE_H
 #define RESIZE_H
 
+#include <magick/api.h>
 #include <sys/types.h>
 
 /**
@@ -40,11 +41,5 @@ void * cap_image(void * blob,
     int maxWidth,
     int maxHeight);
 
-
-// calls InitializeMagick
-void CreateMagick();
-
-// calls DestroyMagick
-void DestroyMagick();
 
 #endif /* end of include guard: RESIZE_H */

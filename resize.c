@@ -1,18 +1,9 @@
-#include <magick/api.h>
 #include <stdbool.h>
 #include <stdio.h>
 
 #include "resize.h"
 
 int DefaultImageQuality = 75;
-
-void CreateMagick() {
-  InitializeMagick(NULL);
-}
-
-void DestroyMagick() {
-  DestroyMagick();
-}
 
 void rotate_image(Image ** image, ExceptionInfo * exception) {
   Image * temp_image = NULL;
