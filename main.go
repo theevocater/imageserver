@@ -102,17 +102,17 @@ func resizeHandler(w http.ResponseWriter, r *http.Request) {
 type CapRequest struct {
 	dimension int
 
-	dimension_enum   C.dimension_enum
+	cap_dimension    C.cap_dimension
 	collection, name string
 	force            bool
 }
 
-func ParseCapRequest(dimension C.dimension_enum, vars map[string]string, query map[string][]string) CapRequest {
+func ParseCapRequest(dimension C.cap_dimension, vars map[string]string, query map[string][]string) CapRequest {
 	r := CapRequest{}
 	var err error
 
 	r.collection = vars["collection"]
-	r.dimension_enum = dimension
+	r.cap_dimension = dimension
 	r.dimension, err = strconv.Atoi(vars["dimension"])
 	if err != nil {
 		panic("Couldn't parse dimension")
@@ -145,7 +145,7 @@ func capImage(w http.ResponseWriter, request CapRequest) {
 			(*C.size_t)(unsafe.Pointer(&length)),
 			(*C.cap_image_error)(unsafe.Pointer(&err)),
 			(C.int)(request.dimension),
-			request.dimension_enum,
+			request.cap_dimension,
 			0, 13, 1.0, 100000, 100000)
 		defer C.free(blob)
 		// TODO need to do some checking on err

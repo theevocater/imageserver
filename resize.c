@@ -128,7 +128,7 @@ end:
 }
 
 void * cap_image(void * blob, size_t * length, cap_image_error * error,
-    int cap, dimension_enum dimension, int quality, int filter, double blur, int maxWidth, int maxHeight)
+    int cap, cap_dimension dimension, int quality, int filter, double blur, int maxWidth, int maxHeight)
 {
   Image * image = (Image *) NULL;
 
