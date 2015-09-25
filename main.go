@@ -12,6 +12,7 @@ import (
 	"unsafe"
 
 	"github.com/gorilla/mux"
+	"github.com/theevocater/adminz"
 )
 
 /*
@@ -188,11 +189,11 @@ func heightHandler(w http.ResponseWriter, r *http.Request) {
 	capImage(w, request)
 }
 
-var Conf Confs = Confs{"images/", 8000, 10000, 10000}
+var Conf Confs = Confs{"images/", "8000", 10000, 10000}
 
 type Confs struct {
 	file_prefix         string
-	port                int
+	port                string
 	maxWidth, maxHeight int
 }
 
@@ -209,12 +210,12 @@ func main() {
 		<-signal_chan
 		// clean up graphicsmagick's memory / event loops
 		C.DestroyMagick()
+		adminz.Stop()
 		os.Exit(1)
 	}()
 
 	r := mux.NewRouter()
 
-	// /img/collection/dimensions/name?flags
 	r.HandleFunc("/img/{collection}/cap{dimension}/{name}", capHandler)
 	r.HandleFunc("/img/{collection}/cap/{dimension}/{name}", capHandler)
 
@@ -225,6 +226,8 @@ func main() {
 	r.HandleFunc("/img/{collection}/height/{dimension}/{name}", heightHandler)
 
 	r.HandleFunc("/img/{collection}/{width}x{height}/{name}", resizeHandler)
+	http.Handle("/", r)
 	log.Print("Starting imageservice")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", Conf.port), r))
+	adminz.Init(Conf.port, func() string { return "{ \"a\": 1 }" })
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", Conf.port), nil))
 }
