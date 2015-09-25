@@ -15,8 +15,7 @@ import (
 )
 
 /*
-#cgo CFLAGS: -I/usr/local/include/GraphicsMagick
-#cgo LDFLAGS: -L/usr/local/lib -l GraphicsMagick
+#cgo pkg-config: GraphicsMagick
 
 #include "resize.h"
 #include <stdlib.h>
