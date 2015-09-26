@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path"
 	"strconv"
 	"time"
 	"unsafe"
@@ -37,6 +38,14 @@ func Write400(w http.ResponseWriter) {
 		log.Print(r)
 		w.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+func WriteImage(name string, resized_bytes []byte, length int, w http.ResponseWriter) {
+	w.Header().Add("Content-Type", fmt.Sprintf("image/%s", path.Ext(name)[1:]))
+	w.Header().Add("Content-Length", strconv.Itoa(length))
+	w.Header().Add("Last-Modified", time.Now().Format(time.RFC1123))
+	w.WriteHeader(http.StatusOK)
+	w.Write(resized_bytes)
 }
 
 type Request struct {
@@ -101,12 +110,7 @@ func (h ResizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		length = len(fetched_file)
 	}
 
-	// TODO(jake) return the actual type
-	w.Header().Add("Content-Type", "image/png")
-	w.Header().Add("Content-Length", strconv.Itoa(length))
-	w.Header().Add("Last-Modified", time.Now().Format(time.RFC1123))
-	w.WriteHeader(http.StatusOK)
-	w.Write(resized_bytes)
+	WriteImage(request.name, resized_bytes, length, w)
 }
 
 type CapRequest struct {
@@ -139,6 +143,18 @@ func ParseCapRequest(dimension C.cap_dimension, vars map[string]string, query ma
 	return r
 }
 
+type CapHandler struct {
+	Confs
+	dimension C.cap_dimension
+}
+
+func (h CapHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer Write400(w)
+
+	request := ParseCapRequest(h.dimension, mux.Vars(r), r.URL.Query())
+	capImage(w, request, h.filePrefix)
+}
+
 func capImage(w http.ResponseWriter, request CapRequest, filePrefix string) {
 	file_struct := NewDiskImage(filePrefix, request.collection, fmt.Sprintf("cap/%d", request.dimension), request.name)
 	fetched_file, resize := file_struct.read()
@@ -169,22 +185,5 @@ func capImage(w http.ResponseWriter, request CapRequest, filePrefix string) {
 		length = len(fetched_file)
 	}
 
-	// TODO(jake) return the actual type
-	w.Header().Add("Content-Type", "image/png")
-	w.Header().Add("Content-Length", strconv.Itoa(length))
-	w.Header().Add("Last-Modified", time.Now().Format(time.RFC1123))
-	w.WriteHeader(http.StatusOK)
-	w.Write(resized_bytes)
-}
-
-type CapHandler struct {
-	Confs
-	dimension C.cap_dimension
-}
-
-func (h CapHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	defer Write400(w)
-
-	request := ParseCapRequest(h.dimension, mux.Vars(r), r.URL.Query())
-	capImage(w, request, h.filePrefix)
+	WriteImage(request.name, resized_bytes, length, w)
 }
