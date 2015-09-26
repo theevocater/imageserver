@@ -1,66 +1,47 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
-	"os"
-	"path"
+
+	"github.com/rlmcpherson/s3gof3r"
 )
 
-type image_file interface {
-	read() ([]byte, bool)
-	write([]byte)
+type ImageFile interface {
+	Read() ([]byte, bool)
+	Write([]byte) error
 }
 
-type disk_image struct {
-	// full filename on disk
-	resized_name  string
-	original_name string
+// if i care to, it might be worth adding a Shutdown to close connections etc
+// etc
+type ImageFactory struct {
+	// the 4x string interface is totally wrong, need to rethink it.
+	NewImage func(string, string) ImageFile
 }
 
-func NewDiskImage(prefix, bucket, dimensions, filename string) *disk_image {
-	img := new(disk_image)
-	img.original_name = path.Clean(path.Join(prefix, bucket, filename))
-	img.resized_name = path.Clean(path.Join(prefix, bucket, dimensions, filename))
-	return img
-}
-
-func (image *disk_image) read() ([]byte, bool) {
-	var file, err = ioutil.ReadFile(image.resized_name)
-	var resize = false
-
+func NewS3ImageFactory(bucketName string) *ImageFactory {
+	factory := new(ImageFactory)
+	//log.Print(imageCollections)
+	k, err := s3gof3r.EnvKeys() // get S3 keys from environment
 	if err != nil {
-		file, err = ioutil.ReadFile(image.original_name)
-		resize = true
-		log.Printf("found original file %s", image.original_name)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		log.Printf("found resized file %s", image.resized_name)
+		log.Fatal("Unable to init s3", err)
 	}
-	return file, resize
-}
 
-func (image *disk_image) write(resized_image []byte) {
-	err := os.MkdirAll(path.Dir(image.resized_name), 0755)
-	err = ioutil.WriteFile(image.resized_name, resized_image, 0644)
-	if err != nil {
-		log.Print(err)
+	// Open bucket to put file into
+	s3 := s3gof3r.New("", k)
+
+	bucket := s3.Bucket(bucketName)
+	if bucket == nil {
+		log.Fatal("Unable to init s3", err)
 	}
+	// HOLY SMOKES IT DOESN'T WORKS
+	factory.NewImage = func(r, o string) ImageFile {
+		return NewS3Image(s3, bucket, r, o)
+	}
+	return factory
 }
 
-type s3_image struct {
-	filename string
-	bucket   string
-	//other stuff???
-}
-
-func (image s3_image) read() ([]byte, bool) {
-	//todo
-	panic("Haven't implemented yet")
-}
-
-func (image s3_image) write(resized_image []byte) {
-	panic("Haven't implemented yet")
+func NewDiskImageFactory() *ImageFactory {
+	factory := new(ImageFactory)
+	factory.NewImage = NewDiskImage
+	return factory
 }

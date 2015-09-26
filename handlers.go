@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"path"
@@ -22,7 +21,6 @@ import "C"
 
 func InitMagick() {
 	C.InitializeMagick(nil)
-
 }
 
 func CloseMagick() {
@@ -40,12 +38,20 @@ func Write400(w http.ResponseWriter) {
 	}
 }
 
-func WriteImage(name string, resized_bytes []byte, length int, w http.ResponseWriter) {
-	w.Header().Add("Content-Type", fmt.Sprintf("image/%s", path.Ext(name)[1:]))
+func WriteImage(name string, output []byte, length int, w http.ResponseWriter) {
+	w.Header().Add("Content-Type", mimeTypes[path.Ext(name)[1:]])
 	w.Header().Add("Content-Length", strconv.Itoa(length))
 	w.Header().Add("Last-Modified", time.Now().Format(time.RFC1123))
 	w.WriteHeader(http.StatusOK)
-	w.Write(resized_bytes)
+	w.Write(output)
+}
+
+var mimeTypes map[string]string = map[string]string{
+	"jpg":  "image/jpeg",
+	"jpeg": "image/jpeg",
+	"png":  "image/png",
+	"tif":  "image/tiff",
+	"tiff": "image/tiff",
 }
 
 type Request struct {
@@ -82,6 +88,8 @@ func ParseResizeRequest(vars map[string]string, query map[string][]string) Reque
 
 type ResizeHandler struct {
 	Confs
+	imageCollections map[string]ImageCollection
+	*ImageFactory
 }
 
 func (h ResizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -89,28 +97,31 @@ func (h ResizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer Write400(w)
 
 	request := ParseResizeRequest(mux.Vars(r), r.URL.Query())
-	file_struct := NewDiskImage(h.filePrefix, request.collection, fmt.Sprintf("resize/%dx%d", request.width, request.height), request.name)
-	fetched_file, resize := file_struct.read()
+	collection := h.imageCollections[request.collection]
+	resized := collection.GetResized(request.name, request.width, request.height)
+	original := collection.GetOriginal(request.name)
+	file := h.NewImage(resized, original)
+	input, resize := file.Read()
 
-	var resized_bytes []byte
+	var output []byte
 	var length int
 
 	if resize || request.force {
 		log.Print("resizing")
-		length = len(fetched_file)
-		blob := C.resize_image(unsafe.Pointer(&fetched_file[0]), (*C.size_t)(unsafe.Pointer(&length)), (C.int)(request.width), (C.int)(request.height), 0, 13, 1.0)
+		length = len(input)
+		blob := C.resize_image(unsafe.Pointer(&input[0]), (*C.size_t)(unsafe.Pointer(&length)), (C.int)(request.width), (C.int)(request.height), 0, 13, 1.0)
 		defer C.free(blob)
 
 		// copy to go; I can make this faster with some "internal" things, but that can come later
-		resized_bytes = C.GoBytes(blob, (C.int)(length))
+		output = C.GoBytes(blob, (C.int)(length))
 
-		go file_struct.write(resized_bytes)
+		go file.Write(output)
 	} else {
-		resized_bytes = fetched_file
-		length = len(fetched_file)
+		output = input
+		length = len(input)
 	}
 
-	WriteImage(request.name, resized_bytes, length, w)
+	WriteImage(request.name, output, length, w)
 }
 
 type CapRequest struct {
@@ -145,6 +156,8 @@ func ParseCapRequest(dimension C.cap_dimension, vars map[string]string, query ma
 
 type CapHandler struct {
 	Confs
+	imageCollections map[string]ImageCollection
+	*ImageFactory
 	dimension C.cap_dimension
 }
 
@@ -152,38 +165,53 @@ func (h CapHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer Write400(w)
 
 	request := ParseCapRequest(h.dimension, mux.Vars(r), r.URL.Query())
-	capImage(w, request, h.filePrefix)
+	collection := h.imageCollections[request.collection]
+	var resized string
+
+	switch h.dimension {
+	case C.CAP:
+		resized = collection.GetCapped(request.name, request.dimension)
+	case C.WIDTH:
+		resized = collection.GetWidth(request.name, request.dimension)
+	case C.HEIGHT:
+		resized = collection.GetHeight(request.name, request.dimension)
+	}
+	original := collection.GetOriginal(request.name)
+	file := h.NewImage(resized, original)
+	capImage(w, request, file)
 }
 
-func capImage(w http.ResponseWriter, request CapRequest, filePrefix string) {
-	file_struct := NewDiskImage(filePrefix, request.collection, fmt.Sprintf("cap/%d", request.dimension), request.name)
-	fetched_file, resize := file_struct.read()
+func capImage(w http.ResponseWriter, request CapRequest, file ImageFile) {
+	input, resize := file.Read()
 
-	var resized_bytes []byte
+	var output []byte
 	var length int
 	var err C.cap_image_error
 
 	if resize || request.force {
 		log.Print("resizing")
-		length = len(fetched_file)
+		length = len(input)
 		blob := C.cap_image(
-			unsafe.Pointer(&fetched_file[0]),
+			unsafe.Pointer(&input[0]),
 			(*C.size_t)(unsafe.Pointer(&length)),
 			(*C.cap_image_error)(unsafe.Pointer(&err)),
 			(C.int)(request.dimension),
 			request.cap_dimension,
 			0, 13, 1.0, 100000, 100000)
 		defer C.free(blob)
-		// TODO need to do some checking on err
+
+		if err != C.CAP_IMAGE_ERROR_OK {
+			panic("Failed to resize")
+		}
 
 		// copy to go; I can make this faster with some "internal" things, but that can come later
-		resized_bytes = C.GoBytes(blob, (C.int)(length))
+		output = C.GoBytes(blob, (C.int)(length))
 
-		go file_struct.write(resized_bytes)
+		go file.Write(output)
 	} else {
-		resized_bytes = fetched_file
-		length = len(fetched_file)
+		output = input
+		length = len(input)
 	}
 
-	WriteImage(request.name, resized_bytes, length, w)
+	WriteImage(request.name, output, length, w)
 }

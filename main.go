@@ -24,21 +24,31 @@ var Conf Confs
 
 var adminzEndpoints *adminz.Adminz
 
+var imageCollections map[string]ImageCollection
+
 type Confs struct {
-	filePrefix          string
-	port                string
-	maxWidth, maxHeight int
+	Port                string
+	MaxWidth, MaxHeight int
+
+	// Settings needed for S3
+	S3         bool
+	BucketName string
+
+	CollectionsPath string
 }
 
 func readSettings() []string {
 	c := Confs{}
 
-	flag.StringVar(&c.filePrefix, "filePrefix", "", "full path to the file sandbox you wish to serve")
+	flag.BoolVar(&c.S3, "s3", false, "Use s3 instead of the local filesystem")
+	flag.StringVar(&c.BucketName, "bucketName", "", "Name of S3 bucket to read from")
 
-	flag.StringVar(&c.port, "port", "8000", "listen port")
+	flag.StringVar(&c.CollectionsPath, "collections", "", "json file of image collections")
 
-	flag.IntVar(&c.maxHeight, "maxHeight", 10000, "maximum height of image in pixels")
-	flag.IntVar(&c.maxWidth, "maxWidth", 10000, "maximum width of image in pixels")
+	flag.StringVar(&c.Port, "port", "8000", "listen port")
+
+	flag.IntVar(&c.MaxHeight, "maxHeight", 10000, "maximum height of image in pixels")
+	flag.IntVar(&c.MaxWidth, "maxWidth", 10000, "maximum width of image in pixels")
 
 	flag.Parse()
 	Conf = c
@@ -65,20 +75,57 @@ func main() {
 	r := mux.NewRouter()
 
 	readSettings()
+	var factory *ImageFactory
+	if Conf.S3 {
+		factory = NewS3ImageFactory(Conf.BucketName)
+	} else {
+		factory = NewDiskImageFactory()
+	}
 
-	capHandler := CapHandler{Conf, C.CAP}
+	imageCollections, err := ParseImageCollections(Conf.CollectionsPath)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	log.Print("Found collections: ")
+	for k, _ := range imageCollections {
+		log.Print(k)
+	}
+
+	capHandler := CapHandler{
+		Confs:            Conf,
+		imageCollections: imageCollections,
+		ImageFactory:     factory,
+		dimension:        C.CAP,
+	}
 	r.Handle("/img/{collection}/cap{dimension}/{name}", capHandler)
 	r.Handle("/img/{collection}/cap/{dimension}/{name}", capHandler)
 
-	widthHandler := CapHandler{Conf, C.WIDTH}
+	widthHandler := CapHandler{
+		Confs:            Conf,
+		imageCollections: imageCollections,
+		ImageFactory:     factory,
+		dimension:        C.WIDTH,
+	}
 	r.Handle("/img/{collection}/width{dimension}/{name}", widthHandler)
 	r.Handle("/img/{collection}/width/{dimension}/{name}", widthHandler)
 
-	heightHandler := CapHandler{Conf, C.HEIGHT}
+	heightHandler := CapHandler{
+		Confs:            Conf,
+		imageCollections: imageCollections,
+		ImageFactory:     factory,
+		dimension:        C.HEIGHT,
+	}
 	r.Handle("/img/{collection}/height{dimension}/{name}", heightHandler)
 	r.Handle("/img/{collection}/height/{dimension}/{name}", heightHandler)
 
-	r.Handle("/img/{collection}/{width}x{height}/{name}", ResizeHandler{Conf})
+	resizeHandler := ResizeHandler{
+		Confs:            Conf,
+		imageCollections: imageCollections,
+		ImageFactory:     factory,
+	}
+	r.Handle("/img/{collection}/{width}x{height}/{name}", resizeHandler)
+
 	http.Handle("/", r)
 
 	log.Print("Starting imageservice")
@@ -87,9 +134,6 @@ func main() {
 		func() error { return nil },
 		func() error { return nil },
 		func() interface{} { return map[string]string{"a": "b"} },
-		adminz.Killfiles(Conf.port))
-
-	log.Printf("Listening on port %s", Conf.port)
-	log.Printf("Reading images from disk at %s", Conf.filePrefix)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", Conf.port), nil))
+		adminz.Killfiles(Conf.Port))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", Conf.Port), nil))
 }
