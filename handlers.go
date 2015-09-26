@@ -25,7 +25,7 @@ func InitMagick() {
 }
 
 func CloseMagick() {
-
+	C.DestroyMagick()
 }
 
 type Dimensions struct {
