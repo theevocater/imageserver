@@ -22,6 +22,8 @@ import "C"
 
 var Conf Confs
 
+var adminzEndpoints *adminz.Adminz
+
 type Confs struct {
 	filePrefix          string
 	port                string
@@ -57,7 +59,6 @@ func main() {
 		<-signal_chan
 		// clean up graphicsmagick's memory / event loops
 		CloseMagick()
-		adminz.Stop()
 		os.Exit(1)
 	}()
 
@@ -82,7 +83,11 @@ func main() {
 
 	log.Print("Starting imageservice")
 
-	adminz.Init(Conf.port, func() string { return "{ \"a\": 1 }" })
+	adminzEndpoints = adminz.New(
+		func() error { return nil },
+		func() error { return nil },
+		func() interface{} { return map[string]string{"a": "b"} },
+		adminz.Killfiles(Conf.port))
 
 	log.Printf("Listening on port %s", Conf.port)
 	log.Printf("Reading images from disk at %s", Conf.filePrefix)
