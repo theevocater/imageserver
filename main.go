@@ -130,10 +130,6 @@ func main() {
 
 	log.Print("Starting imageservice")
 
-	adminzEndpoints = adminz.New(
-		func() error { return nil },
-		func() error { return nil },
-		func() interface{} { return map[string]string{"a": "b"} },
-		adminz.Killfiles(Conf.Port))
+	adminzEndpoints = adminz.New().KillfilePaths(adminz.Killfiles(Conf.Port)).Build()
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", Conf.Port), nil))
 }
