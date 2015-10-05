@@ -32,7 +32,6 @@ func NewS3ImageFactory(bucketName string) *ImageFactory {
 	if bucket == nil {
 		log.Fatal("Unable to init s3", err)
 	}
-	// HOLY SMOKES IT DOESN'T WORKS
 	factory.NewImage = func(r, o string, b bool) ImageFile {
 		return NewS3Image(s3, bucket, r, o, b)
 	}
