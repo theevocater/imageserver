@@ -92,37 +92,35 @@ func main() {
 		log.Print(k)
 	}
 
-	capHandler := CapHandler{
+	handler := Handler{
 		Confs:            Conf,
 		imageCollections: imageCollections,
 		ImageFactory:     factory,
-		dimension:        C.CAP,
+	}
+
+	capHandler := CapHandler{
+		Handler:   handler,
+		dimension: C.CAP,
 	}
 	r.Handle("/img/{collection}/cap{dimension}/{name}", capHandler)
 	r.Handle("/img/{collection}/cap/{dimension}/{name}", capHandler)
 
 	widthHandler := CapHandler{
-		Confs:            Conf,
-		imageCollections: imageCollections,
-		ImageFactory:     factory,
-		dimension:        C.WIDTH,
+		Handler:   handler,
+		dimension: C.WIDTH,
 	}
 	r.Handle("/img/{collection}/width{dimension}/{name}", widthHandler)
 	r.Handle("/img/{collection}/width/{dimension}/{name}", widthHandler)
 
 	heightHandler := CapHandler{
-		Confs:            Conf,
-		imageCollections: imageCollections,
-		ImageFactory:     factory,
-		dimension:        C.HEIGHT,
+		Handler:   handler,
+		dimension: C.HEIGHT,
 	}
 	r.Handle("/img/{collection}/height{dimension}/{name}", heightHandler)
 	r.Handle("/img/{collection}/height/{dimension}/{name}", heightHandler)
 
 	resizeHandler := ResizeHandler{
-		Confs:            Conf,
-		imageCollections: imageCollections,
-		ImageFactory:     factory,
+		Handler: handler,
 	}
 	r.Handle("/img/{collection}/{width}x{height}/{name}", resizeHandler)
 
