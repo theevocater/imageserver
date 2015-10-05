@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"mime"
 	"net/http"
 	"path"
 	"strconv"
@@ -39,19 +40,11 @@ func Write400(w http.ResponseWriter) {
 }
 
 func WriteImage(name string, output []byte, length int, w http.ResponseWriter) {
-	w.Header().Add("Content-Type", mimeTypes[path.Ext(name)[1:]])
+	w.Header().Add("Content-Type", mime.TypeByExtension(path.Ext(name)))
 	w.Header().Add("Content-Length", strconv.Itoa(length))
 	w.Header().Add("Last-Modified", time.Now().Format(time.RFC1123))
 	w.WriteHeader(http.StatusOK)
 	w.Write(output)
-}
-
-var mimeTypes map[string]string = map[string]string{
-	"jpg":  "image/jpeg",
-	"jpeg": "image/jpeg",
-	"png":  "image/png",
-	"tif":  "image/tiff",
-	"tiff": "image/tiff",
 }
 
 type Request struct {
