@@ -70,7 +70,6 @@ func (h ResizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var length int
 
 	if resize || request.force {
-		log.Print("resizing")
 		length = len(input)
 		blob := C.resize_image(unsafe.Pointer(&input[0]), (*C.size_t)(unsafe.Pointer(&length)), (C.int)(request.width), (C.int)(request.height), 0, 13, (C.double)(request.blur))
 		defer C.free(blob)

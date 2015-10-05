@@ -54,7 +54,7 @@ func (image *S3Image) Read() (data []byte, resize bool) {
 		data = readS3(image, image.originalName)
 		resize = true
 	}
-	return nil, false
+	return data, resize
 }
 
 func (image *S3Image) Write(resized_image []byte) error {
