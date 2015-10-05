@@ -20,14 +20,6 @@ import (
 */
 import "C"
 
-func InitMagick() {
-	C.InitializeMagick(nil)
-}
-
-func CloseMagick() {
-	C.DestroyMagick()
-}
-
 type Dimensions struct {
 	width, height int
 }
