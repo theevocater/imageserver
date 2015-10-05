@@ -67,7 +67,7 @@ func (h ResizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	collection := h.imageCollections[request.collection]
 	resized := collection.GetResized(request.name, request.width, request.height)
 	original := collection.GetOriginal(request.name)
-	file := h.NewImage(resized, original)
+	file := h.NewImage(resized, original, request.force)
 	input, resize := file.Read()
 
 	var output []byte

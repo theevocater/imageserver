@@ -67,7 +67,7 @@ func (h CapHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		resized = collection.GetHeight(request.name, request.dimension)
 	}
 	original := collection.GetOriginal(request.name)
-	file := h.NewImage(resized, original)
+	file := h.NewImage(resized, original, request.force)
 	capImage(w, request, file, Conf.MaxWidth, Conf.MaxHeight)
 }
 

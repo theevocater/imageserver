@@ -14,8 +14,7 @@ type ImageFile interface {
 // if i care to, it might be worth adding a Shutdown to close connections etc
 // etc
 type ImageFactory struct {
-	// the 4x string interface is totally wrong, need to rethink it.
-	NewImage func(string, string) ImageFile
+	NewImage func(resized string, original string, force bool) ImageFile
 }
 
 func NewS3ImageFactory(bucketName string) *ImageFactory {
@@ -34,14 +33,14 @@ func NewS3ImageFactory(bucketName string) *ImageFactory {
 		log.Fatal("Unable to init s3", err)
 	}
 	// HOLY SMOKES IT DOESN'T WORKS
-	factory.NewImage = func(r, o string) ImageFile {
-		return NewS3Image(s3, bucket, r, o)
+	factory.NewImage = func(r, o string, b bool) ImageFile {
+		return NewS3Image(s3, bucket, r, o, b)
 	}
 	return factory
 }
 
 func NewDiskImageFactory() *ImageFactory {
-	factory := new(ImageFactory)
-	factory.NewImage = NewDiskImage
-	return factory
+	return &ImageFactory{
+		NewImage: NewDiskImage,
+	}
 }

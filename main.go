@@ -124,6 +124,11 @@ func main() {
 	}
 	r.Handle("/img/{collection}/{width}x{height}/{name}", resizeHandler)
 
+	originalHandler := OriginalHandler{
+		Handler: handler,
+	}
+	r.Handle("/img/{collection}/original/{name}", originalHandler)
+
 	http.Handle("/", r)
 
 	log.Print("Starting imageservice")

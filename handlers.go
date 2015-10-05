@@ -11,7 +11,7 @@ import (
 
 func Write400(w http.ResponseWriter) {
 	if r := recover(); r != nil {
-		log.Print(r)
+		log.Print("Failed to process ", r)
 		w.WriteHeader(http.StatusBadRequest)
 	}
 }

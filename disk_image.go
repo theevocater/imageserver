@@ -2,7 +2,6 @@ package main
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 )
@@ -11,30 +10,34 @@ type DiskImage struct {
 	// full filename on disk
 	resizedName  string
 	originalName string
+	force        bool
 }
 
-func NewDiskImage(resized, original string) ImageFile {
-	img := new(DiskImage)
-	img.originalName = original
-	img.resizedName = resized
+func NewDiskImage(resized, original string, force bool) ImageFile {
+	img := &DiskImage{
+		originalName: original,
+		resizedName:  resized,
+		force:        force,
+	}
 	return img
 }
 
-func (image *DiskImage) Read() ([]byte, bool) {
-	var file, err = ioutil.ReadFile(image.resizedName)
-	var resize = false
+func (image *DiskImage) Read() (data []byte, resize bool) {
+	var err error
 
-	if err != nil {
-		file, err = ioutil.ReadFile(image.originalName)
-		resize = true
-		log.Printf("found original file %s", image.originalName)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		log.Printf("found resized file %s", image.resizedName)
+	if !image.force {
+		data, err = ioutil.ReadFile(image.resizedName)
+		resize = false
 	}
-	return file, resize
+
+	if err != nil || data == nil {
+		data, err = ioutil.ReadFile(image.originalName)
+		resize = true
+		if err != nil {
+			data = nil
+		}
+	}
+	return data, resize
 }
 
 func (image *DiskImage) Write(resized_image []byte) error {

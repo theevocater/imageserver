@@ -15,14 +15,16 @@ type S3Image struct {
 
 	resizedName  string
 	originalName string
+	force        bool
 }
 
-func NewS3Image(s3 *s3gof3r.S3, bucket *s3gof3r.Bucket, resized, original string) ImageFile {
+func NewS3Image(s3 *s3gof3r.S3, bucket *s3gof3r.Bucket, resized, original string, force bool) ImageFile {
 	img := &S3Image{
 		s3:           s3,
 		bucket:       bucket,
 		originalName: original,
 		resizedName:  resized,
+		force:        force,
 	}
 	return img
 }
@@ -42,15 +44,17 @@ func readS3(image *S3Image, path string) []byte {
 	return bytes
 }
 
-func (image *S3Image) Read() ([]byte, bool) {
-	log.Print("trying resized ", image.resizedName)
-	if data := readS3(image, image.resizedName); data != nil {
-		log.Print("found resized")
-		return data, false
-	} else {
-		log.Print("trying original ", image.originalName)
-		return readS3(image, image.originalName), true
+func (image *S3Image) Read() (data []byte, resize bool) {
+	if !image.force {
+		data = readS3(image, image.resizedName)
+		resize = false
 	}
+
+	if data == nil {
+		data = readS3(image, image.originalName)
+		resize = true
+	}
+	return nil, false
 }
 
 func (image *S3Image) Write(resized_image []byte) error {
