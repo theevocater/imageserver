@@ -34,20 +34,28 @@ func ParseImageCollections(file string) (map[string]ImageCollection, error) {
 	return ret, err
 }
 
-func (collection *ImageCollection) GetResized(imageId string, width int, height int) string {
-	return fmt.Sprintf(collection.Resized, width, height, "", imageId)
+func addModifiers(mods Modifiers) string {
+	ret := ""
+	if mods.blur != DEFAULTBLUR {
+		ret = fmt.Sprintf("blur%g/", mods.blur)
+	}
+	return ret
 }
 
-func (collection *ImageCollection) GetCapped(imageId string, capped int) string {
-	return fmt.Sprintf(collection.Capped, capped, "", imageId)
+func (collection *ImageCollection) GetResized(imageId string, width int, height int, mods Modifiers) string {
+	return fmt.Sprintf(collection.Resized, width, height, addModifiers(mods), imageId)
 }
 
-func (collection *ImageCollection) GetWidth(imageId string, width int) string {
-	return fmt.Sprintf(collection.Width, width, "", imageId)
+func (collection *ImageCollection) GetCapped(imageId string, capped int, mods Modifiers) string {
+	return fmt.Sprintf(collection.Capped, capped, addModifiers(mods), imageId)
 }
 
-func (collection *ImageCollection) GetHeight(imageId string, height int) string {
-	return fmt.Sprintf(collection.Height, height, "", imageId)
+func (collection *ImageCollection) GetWidth(imageId string, width int, mods Modifiers) string {
+	return fmt.Sprintf(collection.Width, width, addModifiers(mods), imageId)
+}
+
+func (collection *ImageCollection) GetHeight(imageId string, height int, mods Modifiers) string {
+	return fmt.Sprintf(collection.Height, height, addModifiers(mods), imageId)
 }
 
 func (collection *ImageCollection) GetOriginal(imageId string) string {

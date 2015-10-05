@@ -103,26 +103,33 @@ func main() {
 		dimension: C.CAP,
 	}
 	r.Handle("/img/{collection}/cap{dimension}/{name}", capHandler)
+	r.Handle("/img/{collection}/cap{dimension}/blur{blur}/{name}", capHandler)
 	r.Handle("/img/{collection}/cap/{dimension}/{name}", capHandler)
+	r.Handle("/img/{collection}/cap/{dimension}/blur{blur}/{name}", capHandler)
 
 	widthHandler := CapHandler{
 		Handler:   handler,
 		dimension: C.WIDTH,
 	}
 	r.Handle("/img/{collection}/width{dimension}/{name}", widthHandler)
+	r.Handle("/img/{collection}/width{dimension}/blur{blur}/{name}", widthHandler)
 	r.Handle("/img/{collection}/width/{dimension}/{name}", widthHandler)
+	r.Handle("/img/{collection}/width/{dimension}/blur{blur}/{name}", widthHandler)
 
 	heightHandler := CapHandler{
 		Handler:   handler,
 		dimension: C.HEIGHT,
 	}
 	r.Handle("/img/{collection}/height{dimension}/{name}", heightHandler)
+	r.Handle("/img/{collection}/height{dimension}/blur{blur}/{name}", heightHandler)
 	r.Handle("/img/{collection}/height/{dimension}/{name}", heightHandler)
+	r.Handle("/img/{collection}/height/{dimension}/blur{blur}/{name}", heightHandler)
 
 	resizeHandler := ResizeHandler{
 		Handler: handler,
 	}
 	r.Handle("/img/{collection}/{width}x{height}/{name}", resizeHandler)
+	r.Handle("/img/{collection}/{width}x{height}/blur{blur}/{name}", resizeHandler)
 
 	originalHandler := OriginalHandler{
 		Handler: handler,

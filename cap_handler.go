@@ -16,16 +16,16 @@ import (
 */
 import "C"
 
-type CapRequest struct {
+type capRequest struct {
 	dimension int
 
 	cap_dimension    C.cap_dimension
 	collection, name string
-	force            bool
+	Modifiers
 }
 
-func ParseCapRequest(dimension C.cap_dimension, vars map[string]string, query map[string][]string) CapRequest {
-	r := CapRequest{}
+func parseCap(dimension C.cap_dimension, vars map[string]string, query map[string][]string) capRequest {
+	r := capRequest{}
 	var err error
 
 	r.collection = vars["collection"]
@@ -43,6 +43,8 @@ func ParseCapRequest(dimension C.cap_dimension, vars map[string]string, query ma
 		}
 	}
 
+	r.Modifiers = parseModifiers(vars, query)
+
 	return r
 }
 
@@ -54,24 +56,26 @@ type CapHandler struct {
 func (h CapHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer Write400(w)
 
-	request := ParseCapRequest(h.dimension, mux.Vars(r), r.URL.Query())
+	request := parseCap(h.dimension, mux.Vars(r), r.URL.Query())
 	collection := h.imageCollections[request.collection]
 	var resized string
 
 	switch h.dimension {
 	case C.CAP:
-		resized = collection.GetCapped(request.name, request.dimension)
+		resized = collection.GetCapped(request.name, request.dimension, request.Modifiers)
 	case C.WIDTH:
-		resized = collection.GetWidth(request.name, request.dimension)
+		resized = collection.GetWidth(request.name, request.dimension, request.Modifiers)
 	case C.HEIGHT:
-		resized = collection.GetHeight(request.name, request.dimension)
+		resized = collection.GetHeight(request.name, request.dimension, request.Modifiers)
 	}
 	original := collection.GetOriginal(request.name)
+
 	file := h.NewImage(resized, original, request.force)
+
 	capImage(w, request, file, Conf.MaxWidth, Conf.MaxHeight)
 }
 
-func capImage(w http.ResponseWriter, request CapRequest, file ImageFile, maxWidth int, maxHeight int) {
+func capImage(w http.ResponseWriter, request capRequest, file ImageFile, maxWidth int, maxHeight int) {
 	input, resize := file.Read()
 
 	var output []byte
@@ -87,7 +91,7 @@ func capImage(w http.ResponseWriter, request CapRequest, file ImageFile, maxWidt
 			(*C.cap_image_error)(unsafe.Pointer(&err)),
 			(C.int)(request.dimension),
 			request.cap_dimension,
-			0, 13, 1.0, (C.int)(maxWidth), (C.int)(maxHeight))
+			0, 13, (C.double)(request.blur), (C.int)(maxWidth), (C.int)(maxHeight))
 		defer C.free(blob)
 
 		if err != C.CAP_IMAGE_ERROR_OK {

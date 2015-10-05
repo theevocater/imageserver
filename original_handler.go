@@ -6,12 +6,12 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type request struct {
+type originalRequest struct {
 	collection, name string
 }
 
-func parse(vars map[string]string, query map[string][]string) request {
-	return request{
+func originalParse(vars map[string]string, query map[string][]string) originalRequest {
+	return originalRequest{
 		collection: vars["collection"],
 		name:       vars["name"],
 	}
@@ -24,7 +24,7 @@ type OriginalHandler struct {
 func (h OriginalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer Write400(w)
 
-	request := parse(mux.Vars(r), r.URL.Query())
+	request := originalParse(mux.Vars(r), r.URL.Query())
 
 	collection := h.imageCollections[request.collection]
 	file := h.NewImage("", collection.GetOriginal(request.name), true)
