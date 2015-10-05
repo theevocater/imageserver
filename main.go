@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/foursquare/goadminz"
 	"github.com/gorilla/mux"
-	"github.com/theevocater/adminz"
 )
 
 /*
