@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/foursquare/goadminz"
+	"github.com/foursquare/fsgo/adminz"
 	"github.com/gorilla/mux"
 )
 
