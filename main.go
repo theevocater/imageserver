@@ -140,6 +140,8 @@ func main() {
 
 	log.Print("Starting imageservice")
 
-	adminzEndpoints = adminz.New().KillfilePaths(adminz.Killfiles(Conf.Port)).Build()
+	adminzEndpoints = adminz.New()
+	adminzEndpoints.KillfilePaths(adminz.Killfiles(Conf.Port))
+	adminzEndpoints.Build()
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", Conf.Port), nil))
 }
