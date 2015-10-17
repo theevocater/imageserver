@@ -1,0 +1,9 @@
+{
+  "test": {
+    "Resized": "test_data/test/resized/%dx%d/%s%s",
+    "Capped": "test_data/test/capped/%d/%s%s",
+    "Height": "test_data/test/cappedwidth/%d/%s%s",
+    "Width": "test_data/test/cappedheight/%d/%s%s",
+    "Original": "test_data/test/%s"
+  }
+}
