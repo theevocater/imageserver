@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/foursquare/fsgo/adminz"
@@ -140,8 +141,12 @@ func main() {
 
 	log.Print("Starting imageservice")
 
-	adminzEndpoints = adminz.New()
-	adminzEndpoints.KillfilePaths(adminz.Killfiles(Conf.Port))
-	adminzEndpoints.Build()
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", Conf.Port), nil))
+	if port, err := strconv.Atoi(Conf.Port); err == nil {
+		adminzEndpoints = adminz.New()
+		adminzEndpoints.KillfilePaths(adminz.Killfiles(port))
+		adminzEndpoints.Build()
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", Conf.Port), nil))
+	} else {
+		log.Fatalf("Unable to parse port %s %s", Conf.Port, err)
+	}
 }
